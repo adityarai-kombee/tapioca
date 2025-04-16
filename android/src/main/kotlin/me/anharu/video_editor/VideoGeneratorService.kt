@@ -88,10 +88,6 @@ class VideoGeneratorService(
                         }
                     }
 
-                    override fun onCurrentWrittenVideoTime(p0: Long): Unit {
-                        println("onCurrentWrittenVideoTime: ${p0}")
-                    }
-
                     override fun onFailed(exception: Exception) {
                         println("onFailed: ${exception}")
                         activity.runOnUiThread {
