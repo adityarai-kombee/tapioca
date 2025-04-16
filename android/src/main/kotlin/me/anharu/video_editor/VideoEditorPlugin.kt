@@ -97,7 +97,7 @@ public class VideoEditorPlugin : FlutterPlugin, MethodCallHandler, PluginRegistr
                         return
                     }
             val generator = VideoGeneratorService(Mp4Composer(srcFilePath, destFilePath))
-            generator.writeVideofile(processing, result, getActivity,newEventSink)
+            generator.writeVideofile(processing, result, getActivity,eventSink)
         } else {
             result.notImplemented()
         }
