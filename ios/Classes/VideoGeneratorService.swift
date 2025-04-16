@@ -118,7 +118,7 @@ public class VideoGeneratorService: VideoGeneratorServiceInterface {
                         return
                     }
                     imageFilter.setValue(source, forKey: "inputBackgroundImage")
-                    let transform = CGAffineTransform(translationX: filteringRequest.sourceImage.extent.width - watermarkImage.extent.width - CGFloat(truncating: x), y:  CGFloat(truncating: y) - filteringRequest.sourceImage.extent.height)
+                    let transform = CGAffineTransform(translationX: CGFloat(truncating: x), y: CGFloat(truncating: y))
                     imageFilter.setValue(watermarkImage.transformed(by: transform), forKey: "inputImage")
                     source = imageFilter.outputImage!
                 default:
