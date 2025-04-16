@@ -67,12 +67,20 @@ public class VideoEditorPlugin : FlutterPlugin, MethodCallHandler, PluginRegistr
     }
 
     override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
-        if (call.method == "getPlatformVersion") {
+        if (call.method.equals("getPlatformVersion")) {
             result.success("Android ${android.os.Build.VERSION.RELEASE}")
-        } else if (call.method == "writeVideofile") {
+        } else if (call.method.equals("writeVideofile")) {
 
+            if(activity == null) {
+                result.error("activity_not_found", "Activity is not found.", null)
+                return
+            }
             var getActivity = activity ?: return
-            var newEventSink = eventSink ?: return
+            if(eventSink == null) {
+                println("event_sink_null Warning: eventSink is null. Make sure Flutter is listening to the event channel")
+                // Consider whether to fail or continue without event reporting
+                // For now, we'll continue but log the warning
+            }
             checkPermission(getActivity)
 
             val srcFilePath: String = call.argument("srcFilePath") ?: run {

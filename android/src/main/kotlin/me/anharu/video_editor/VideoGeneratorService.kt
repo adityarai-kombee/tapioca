@@ -13,6 +13,8 @@ import io.flutter.plugin.common.MethodChannel.Result
 import android.graphics.Paint.Align
 import android.graphics.Paint.ANTI_ALIAS_FLAG
 import android.util.EventLog
+import com.daasuu.mp4compose.FillMode
+import com.daasuu.mp4compose.Rotation
 import com.daasuu.mp4compose.VideoFormatMimeType
 import io.flutter.plugin.common.EventChannel
 import me.anharu.video_editor.filter.GlColorBlendFilter
@@ -21,14 +23,19 @@ import java.util.logging.StreamHandler
 
 
 interface VideoGeneratorServiceInterface {
-    fun writeVideofile(processing: HashMap<String,HashMap<String,Any>>, result: Result, activity: Activity, eventSink: EventChannel.EventSink);
+    fun writeVideofile(processing: HashMap<String,HashMap<String,Any>>, result: Result, activity: Activity, eventSink: EventChannel.EventSink?);
 }
 
 class VideoGeneratorService(
         private val composer: Mp4Composer
 ) : VideoGeneratorServiceInterface {
-    override fun writeVideofile(processing: HashMap<String,HashMap<String,Any>>, result: Result, activity: Activity, eventSink: EventChannel.EventSink ) {
-                 val filters: MutableList<GlFilter> = mutableListOf()
+    override fun writeVideofile(
+        processing: HashMap<String, HashMap<String, Any>>,
+        result: Result,
+        activity: Activity,
+        eventSink: EventChannel.EventSink?
+    ) {
+        val filters: MutableList<GlFilter> = mutableListOf()
         try {
             processing.forEach { (k, v) ->
                 when (k) {
@@ -47,42 +54,69 @@ class VideoGeneratorService(
                     }
                 }
             }
-        } catch (e: Exception){
-            println(e)
-            activity.runOnUiThread(Runnable {
-                result.error("processing_data_invalid", "Processing data is invalid.", null)
-            })
+        } catch (e: Exception) {
+            println("Exception during processing: ${e}")
+            activity.runOnUiThread {
+                result.error("FILTER_PROCESSING_ERROR", "Error processing filters: ${e.message}", null)
+            }
+            return
         }
-        composer.filter(GlFilterGroup( filters))
-                .videoFormatMimeType(VideoFormatMimeType.HEVC)
+
+        try {
+            composer.filter(GlFilterGroup(filters))
+                .fillMode(FillMode.PRESERVE_ASPECT_FIT)
+                .videoFormatMimeType(VideoFormatMimeType.MPEG4)
                 .listener(object : Mp4Composer.Listener {
                     override fun onProgress(progress: Double) {
-                        println("onProgress = " + progress)
-                        activity.runOnUiThread(Runnable {
-                            eventSink.success(progress)
-                        })
+                        println("Progress ${progress}")
+                        activity.runOnUiThread {
+                            eventSink?.success(progress) ?: println("Event Channel is null.")
+                        }
                     }
 
                     override fun onCompleted() {
-                        activity.runOnUiThread(Runnable {
+                        println("onCompleted")
+                        activity.runOnUiThread {
                             result.success(null)
-                        })
+                        }
                     }
 
-                    override  fun onCanceled() {
-                        activity.runOnUiThread(Runnable {
-                            result.error("video_processing_canceled", "Video processing is canceled.", null)
-                        })
+                    override fun onCanceled() {
+                        println("onCanceled")
+                        activity.runOnUiThread {
+                            result.error("VIDEO_PROCESSING_CANCELED", "Video processing was canceled", null)
+                        }
+                    }
+
+                    override fun onCurrentWrittenVideoTime(p0: Long): Unit {
+                        println("onCurrentWrittenVideoTime: ${p0}")
                     }
 
                     override fun onFailed(exception: Exception) {
-                        println(exception);
-                        activity.runOnUiThread(Runnable {
-                            result.error("video_processing_failed", "video processing is failed.", null)
-
-                        })
+                        println("onFailed: ${exception}")
+                        activity.runOnUiThread {
+                            result.error("VIDEO_PROCESSING_FAILED",
+                                "Video processing failed: ${exception.message}",
+                                exception.stackTraceToString())
+                        }
                     }
                 }).start()
+        } catch (e: IllegalArgumentException) {
+            // Specifically handle MediaCodec configuration errors
+            println("MediaCodec configuration error: ${e}")
+            activity.runOnUiThread {
+                result.error("MEDIA_CODEC_ERROR",
+                    "Video encoder configuration error: ${e.message}",
+                    "Check video format and encoder parameters")
+            }
+        } catch (e: Exception) {
+            println("Unexpected error: ${e}")
+            activity.runOnUiThread {
+                result.error("UNEXPECTED_ERROR",
+                    "Unexpected error during video processing: ${e.message}",
+                    e.stackTraceToString())
+            }
+        }
     }
 }
 
